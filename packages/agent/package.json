@@ -1,0 +1,23 @@
+{
+	"name": "@oncemore/agent",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"check-types": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@ai-sdk/openai-compatible": "^3.0.40",
+		"@oncemore/env": "workspace:*",
+		"ai": "^7.0.84",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@oncemore/config": "workspace:*",
+		"@types/bun": "catalog:",
+		"typescript": "catalog:"
+	}
+}

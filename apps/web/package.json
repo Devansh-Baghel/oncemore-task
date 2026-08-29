@@ -1,34 +1,35 @@
 {
-  "name": "web",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --port 3001",
-    "build": "next build",
-    "check-types": "tsc --noEmit",
-    "start": "next start"
-  },
-  "dependencies": {
-    "@oncemore/env": "workspace:*",
-    "@oncemore/ui": "workspace:*",
-    "@swc/helpers": "^0.5.23",
-    "babel-plugin-react-compiler": "^1.0.0",
-    "dotenv": "catalog:",
-    "lucide-react": "catalog:",
-    "next": "^16.3.0",
-    "next-themes": "catalog:",
-    "react": "catalog:",
-    "react-dom": "catalog:",
-    "sonner": "catalog:",
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@oncemore/config": "workspace:*",
-    "@tailwindcss/postcss": "catalog:",
-    "@types/node": "^26.2.0",
-    "@types/react": "catalog:",
-    "@types/react-dom": "catalog:",
-    "tailwindcss": "catalog:",
-    "typescript": "catalog:"
-  }
+	"name": "web",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"dev": "next dev --port 3001",
+		"build": "next build",
+		"check-types": "tsc --noEmit",
+		"start": "next start"
+	},
+	"dependencies": {
+		"@oncemore/agent": "workspace:*",
+		"@oncemore/env": "workspace:*",
+		"@oncemore/ui": "workspace:*",
+		"@swc/helpers": "^0.5.23",
+		"babel-plugin-react-compiler": "^1.0.0",
+		"dotenv": "catalog:",
+		"lucide-react": "catalog:",
+		"next": "^16.3.0",
+		"next-themes": "catalog:",
+		"react": "catalog:",
+		"react-dom": "catalog:",
+		"sonner": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@oncemore/config": "workspace:*",
+		"@tailwindcss/postcss": "catalog:",
+		"@types/node": "^26.2.0",
+		"@types/react": "catalog:",
+		"@types/react-dom": "catalog:",
+		"tailwindcss": "catalog:",
+		"typescript": "catalog:"
+	}
 }

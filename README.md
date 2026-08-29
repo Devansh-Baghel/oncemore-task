@@ -1,81 +1,101 @@
-# oncemore
+# oncemore — Mini Recursive Research Agent
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines Next.js, Express, and more.
+A small multi-agent research system: give it a question, and a **planner → (parallel) researchers → critic → synthesizer** pipeline researches sub-questions, recurses one level deeper where answers are weak (up to a hard cap), and returns a short cited report.
 
-## Features
+Built for the [Paid Trial Task](docs/Paid_Trial_Task_Recursive_Research_Agent%20(1).md): a scoped-down recursive research agent with at least 3 distinct agent roles, structured JSON hand-offs, an enforced budget, and decision logging.
 
-- **TypeScript** - For type safety and improved developer experience
-- **Next.js** - Full-stack React framework
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Express** - Fast, unopinionated web framework
-- **Bun** - Runtime environment
-- **Biome** - Linting and formatting
-- **Turborepo** - Optimized monorepo build system
-
-## Getting Started
-
-First, install the dependencies:
+## Quick start
 
 ```bash
+# 1. Install deps (Bun)
 bun install
-```
 
-Then, run the development server:
+# 2. Set API keys in apps/server/.env
+cp apps/server/.env.example apps/server/.env
+#   - NVIDIA_NIM_API_KEY (free: https://build.nvidia.com)
+#   - EXA_API_KEY (free tier: https://dashboard.exa.ai)
+#   - CORS_ORIGIN=http://localhost:3001 (default)
 
-```bash
+# 3a. CLI
+bun run agent -- "Why is the sky blue?" --max-depth 2 --max-searches 10
+
+# 3b. Web UI (streams agent decisions live)
 bun run dev
+# → web app:  http://localhost:3001
+# → API:      http://localhost:3000 (POST /api/research streams SSE)
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-The API is running at [http://localhost:3000](http://localhost:3000).
+Requires **Node 22+** and **Bun 1.2+**.
 
-## UI Customization
+## How it works
 
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
+```
+user query
+   │
+   ▼
+[Planner]  ──►  Plan { subquestions: [{id, question, depth:0}] }
+   │
+   ▼
+[Researcher ×N — PARALLEL]  ──►  ResearchResult { answer, sources: [{url,title,quotes}] }
+   │
+   ▼
+[Critic]  ──►  Verdict { decision: accept | recurse | fail, reason, followUpQuestion? }
+   │
+   ├── accept ───────────────► synthesis
+   ├── recurse (depth < cap) ► research the follow-up one level deeper
+   └── cap hit / fail        ► synthesize with what we have (graceful stop)
+   │
+   ▼
+[Synthesizer]  ──►  FinalReport { title, summary, sections, citations }
+```
 
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
+- **Roles** live in `packages/agent/src/` — `planner.ts`, `researcher.ts`, `critic.ts`, `synthesizer.ts`. Each is a pure function of structured JSON in → structured JSON out.
+- **Orchestrator** (`orchestrator.ts`) owns the recursion loop and enforces the budget.
+- **Structured hand-offs** are zod schemas in `types.ts` — no raw strings passed between roles.
+- **Budget enforced in code**: `maxDepth`, `maxTotalSearches`, `maxSourcesPerSubquestion`, `parallelism`. Every search goes through a `BudgetTracker`; on cap-hit it emits a `budget_hit` event and synthesizes with what it has rather than crashing.
+- **Logging**: the orchestrator emits a single `AgentEvent` stream. The CLI renders it to the console; the web UI streams the same events over SSE. Every decision (what was searched, why it recursed) is traceable.
 
-### Add more shared components
+## Tech choices
 
-Run this from the project root to add more primitives to the shared UI package:
+| Area | Choice | Why |
+|---|---|---|
+| LLM | NVIDIA NIM via `@ai-sdk/openai-compatible` (Vercel AI SDK) | Free credits; OpenAI-compatible; swappable via config |
+| Worker model | `openai/gpt-oss-20b` | Verified fast + reliable JSON-instruct on NIM |
+| Synthesizer model | `openai/gpt-oss-120b` | Larger/stronger for the final report |
+| Search | Exa REST API | Search + clean content extraction in one call |
+| Stack | This monorepo (Next.js web, Express on Bun, shared `packages/agent`) | Reuses the scaffold; `bun run dev` runs everything |
+
+> **Structured output on NIM**: `generateObject` schema mode is not supported by NIM's OpenAI-compatible endpoint (verified by probe — it errors with "responseFormat is not supported"). Instead, every role uses **JSON-instruct** — the prompt demands a JSON object, and the result is parsed + validated with zod, retrying once on failure. This is why there's no `generateObject` in the code.
+
+## CLI
 
 ```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
+bun run agent -- "your question" [--max-depth N] [--max-searches N] [--out file.json]
 ```
 
-Import shared components like this:
+Prints the live agent trace, then the final report. A JSON trace (all events + the report) is written to `traces/<timestamp>.json` (or `--out`).
 
-```tsx
-import { Button } from "@oncemore/ui/components/button";
+## Web UI
+
+- **`POST /api/research`** (Express, `apps/server/src/research.ts`) runs the pipeline and streams `AgentEvent`s as SSE `data:` frames, ending with a `done` frame carrying the report + stats.
+- **`apps/web`** renders a live timeline (planner sub-questions → parallel searches → critic verdicts → recursion events) and the final report with citations.
+
+## Tests
+
+```bash
+cd packages/agent && bun test
 ```
 
-### Add app-specific blocks
+The orchestrator is tested with a fake LLM (no network, no credits): one test verifies the planner→researcher→critic→recurse→report flow; another verifies the budget cap stops recursion gracefully and still produces a report.
 
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
-
-## Git Hooks and Formatting
-
-- Run checks: `bun run check`
-
-## Project Structure
+## Project layout
 
 ```
-oncemore/
-├── apps/
-│   ├── web/         # Frontend application (Next.js)
-│   └── server/      # Backend API (Express)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
+packages/agent/src/     # the agent engine (roles + orchestrator + types + logger)
+apps/server/src/        # Express API (SSE endpoint) + CLI entry
+apps/web/src/           # Next.js streaming UI
 ```
 
-## Available Scripts
+## Decision Note
 
-- `bun run dev`: Start all applications in development mode
-- `bun run build`: Build all applications
-- `bun run dev:web`: Start only the web application
-- `bun run dev:server`: Start only the server
-- `bun run check-types`: Check TypeScript types across all apps
-- `bun run check`: Run Biome formatting and linting
+Why the architecture is the way it is (alternatives considered and rejected, cost/speed reasoning) lives in [apps/server/DECISION_NOTE.md](apps/server/DECISION_NOTE.md).
