@@ -1,8 +1,8 @@
 import { env } from "@oncemore/env/server";
 import { z } from "zod";
 import type { AgentConfig } from "./config";
-import { debugLog } from "./llm";
 import type { Llm } from "./llm";
+import { debugLog } from "./llm";
 import type { ResearchResult, Source, Subquestion } from "./types";
 import { researchResultSchema } from "./types";
 
@@ -33,7 +33,9 @@ export async function exaSearch(
 	opts: ExaSearchOptions,
 ): Promise<ExaHit[]> {
 	const t0 = Date.now();
-	debugLog(`exa:start queryChars=${query.length} numResults=${opts.numResults} timeoutMs=${opts.timeoutMs}`);
+	debugLog(
+		`exa:start queryChars=${query.length} numResults=${opts.numResults} timeoutMs=${opts.timeoutMs}`,
+	);
 	let res: Response;
 	try {
 		res = await fetch("https://api.exa.ai/search", {
@@ -59,7 +61,9 @@ export async function exaSearch(
 	}
 	if (!res.ok) {
 		const body = await res.text();
-		debugLog(`exa:http-error status=${res.status} duration=${Date.now() - t0}ms body=${body.slice(0, 150)}`);
+		debugLog(
+			`exa:http-error status=${res.status} duration=${Date.now() - t0}ms body=${body.slice(0, 150)}`,
+		);
 		throw new Error(`Exa search failed (${res.status}): ${body.slice(0, 300)}`);
 	}
 	const json = (await res.json()) as { results?: ExaHit[] };

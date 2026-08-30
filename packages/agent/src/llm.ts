@@ -107,7 +107,7 @@ export class NimLlm implements Llm {
 					abortSignal: AbortSignal.timeout(this.opts.timeoutMs),
 				});
 				debugLog(
-					`llm:done model=${model} duration=${Date.now() - t0}ms textChars=${text.length} finishReason=${finishReason} outTokens=${usage.outputTokens?.total ?? "?"} reasoningTokens=${usage.outputTokens?.reasoning ?? 0}`,
+					`llm:done model=${model} duration=${Date.now() - t0}ms textChars=${text.length} finishReason=${finishReason} outTokens=${usage.outputTokens ?? "?"} reasoningTokens=${usage.outputTokenDetails.reasoningTokens ?? 0}`,
 				);
 				if (text.length === 0) {
 					debugLog(
