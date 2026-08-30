@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AgentConfig } from "./config";
-import type { Llm } from "./llm";
+import { type Llm, resolveModel } from "./llm";
 import type { Plan } from "./types";
 import { planSchema, subquestionSchema } from "./types";
 
@@ -22,10 +22,7 @@ Rules:
 
 export interface PlannerDeps {
 	llm: Llm;
-	config: Pick<
-		AgentConfig,
-		"workerModel" | "maxSubquestionsPerLevel" | "maxRetries"
-	>;
+	config: AgentConfig;
 }
 
 /**
@@ -44,7 +41,7 @@ export async function planResearch(
 	for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
 		try {
 			const output = await llm.generateJson(prompt, plannerOutputSchema, {
-				model: config.workerModel,
+				model: resolveModel(config, "planner"),
 				maxOutputTokens: 900,
 			});
 			// Attach depth 0 and normalize ids to q1..qN.

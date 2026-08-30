@@ -1,7 +1,9 @@
+import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { env } from "@oncemore/env/server";
 import { generateText } from "ai";
 import type { z } from "zod";
+import type { AgentConfig } from "./config";
 
 /**
  * The provider abstraction every role depends on. Keeping this an interface
@@ -27,6 +29,13 @@ const nim = createOpenAICompatible({
 	name: "nim",
 	apiKey: env.NVIDIA_NIM_API_KEY,
 });
+
+function getBedrock() {
+	return createAmazonBedrock({
+		region: env.AWS_BEDROCK_REGION ?? "us-east-1",
+		apiKey: env.AWS_BEDROCK_API_KEY,
+	});
+}
 
 /**
  * Strips markdown code fences and trims to the outermost JSON object.
@@ -168,6 +177,143 @@ export class NimLlm implements Llm {
 	}
 }
 
+export class BedrockLlm implements Llm {
+	private readonly opts: NimLlmOptions;
+
+	constructor(opts?: Partial<NimLlmOptions>) {
+		this.opts = { ...nimLlmDefaults, ...opts };
+	}
+
+	async complete(
+		prompt: string,
+		opts?: { model?: string; maxOutputTokens?: number },
+	): Promise<string> {
+		const model = opts?.model ?? defaultBedrockModel();
+		let lastError: unknown;
+		for (let attempt = 0; attempt <= this.opts.maxRetries; attempt++) {
+			const t0 = Date.now();
+			debugLog(
+				`llm:start provider=bedrock model=${model} attempt=${attempt + 1}/${this.opts.maxRetries + 1} promptChars=${prompt.length} maxOutputTokens=${opts?.maxOutputTokens ?? 1024}`,
+			);
+			try {
+				const bedrock = getBedrock();
+				const { text, finishReason, usage } = await generateText({
+					model: bedrock(model as never),
+					prompt,
+					maxOutputTokens: opts?.maxOutputTokens ?? 1024,
+					abortSignal: AbortSignal.timeout(this.opts.timeoutMs),
+				});
+				debugLog(
+					`llm:done provider=bedrock model=${model} duration=${Date.now() - t0}ms textChars=${text.length} finishReason=${finishReason} outTokens=${usage.outputTokens ?? "?"} reasoningTokens=${usage.outputTokenDetails.reasoningTokens ?? 0}`,
+				);
+				if (text.length === 0) {
+					debugLog(
+						`llm:empty-content provider=bedrock model=${model} finishReason=${finishReason}`,
+					);
+				}
+				return text;
+			} catch (err) {
+				const msg = (err as Error).message.slice(0, 300);
+				debugLog(
+					`llm:error provider=bedrock model=${model} duration=${Date.now() - t0}ms attempt=${attempt + 1} error=${msg}`,
+				);
+				lastError = err;
+				if (attempt < this.opts.maxRetries) {
+					const wait = backoffDelay(this.opts.retryDelayMs, attempt);
+					debugLog(`llm:retry provider=bedrock model=${model} in ${wait}ms`);
+					await delay(wait);
+				}
+			}
+		}
+		throw new Error(
+			`Bedrock LLM call failed after ${this.opts.maxRetries + 1} attempts: ${String(lastError)}`,
+		);
+	}
+
+	async generateJson<T>(
+		prompt: string,
+		schema: z.ZodType<T>,
+		opts?: { model?: string; maxOutputTokens?: number },
+	): Promise<T> {
+		const model = opts?.model ?? defaultBedrockModel();
+		let lastError: unknown;
+		for (let attempt = 0; attempt <= this.opts.maxRetries; attempt++) {
+			try {
+				const text = await this.complete(prompt, opts);
+				const json = extractJson(text);
+				const parsed = schema.parse(JSON.parse(json));
+				debugLog(
+					`json:ok provider=bedrock model=${model} attempt=${attempt + 1}`,
+				);
+				return parsed;
+			} catch (err) {
+				const msg = (err as Error).message.slice(0, 300);
+				debugLog(
+					`json:fail provider=bedrock model=${model} attempt=${attempt + 1} error=${msg}`,
+				);
+				lastError = err;
+				if (attempt < this.opts.maxRetries) {
+					const wait = backoffDelay(this.opts.retryDelayMs, attempt);
+					debugLog(`json:retry provider=bedrock model=${model} in ${wait}ms`);
+					await delay(wait);
+				}
+			}
+		}
+		throw new Error(
+			`Bedrock generateJson failed after ${this.opts.maxRetries + 1} attempts: ${String(lastError)}`,
+		);
+	}
+}
+
+/**
+ * Factory: returns the correct Llm implementation for a config provider.
+ * Uses the same retry/timeout knobs as NimLlm.
+ */
+export function createLlm(
+	config: Pick<
+		AgentConfig,
+		"provider" | "maxRetries" | "retryDelayMs" | "llmTimeoutMs"
+	>,
+): Llm {
+	const opts = {
+		maxRetries: config.maxRetries,
+		retryDelayMs: config.retryDelayMs,
+		timeoutMs: config.llmTimeoutMs,
+	};
+	if (config.provider === "bedrock") {
+		if (!env.AWS_BEDROCK_API_KEY) {
+			throw new Error(
+				"AWS_BEDROCK_API_KEY is not set — cannot use bedrock provider. Set it in apps/server/.env",
+			);
+		}
+		return new BedrockLlm(opts);
+	}
+	return new NimLlm(opts);
+}
+
+/**
+ * Resolve the model ID for a given role + provider.
+ * Bedrock uses per-role models; NVIDIA uses worker/synthesizer.
+ */
+export function resolveModel(
+	config: AgentConfig,
+	role: "planner" | "researcher" | "critic" | "synthesizer",
+): string {
+	if (config.provider === "bedrock") {
+		switch (role) {
+			case "planner":
+				return config.bedrockPlannerModel;
+			case "researcher":
+				return config.bedrockResearcherModel;
+			case "critic":
+				return config.bedrockCriticModel;
+			case "synthesizer":
+				return config.bedrockSynthesizerModel;
+		}
+	}
+	return role === "synthesizer" ? config.synthesizerModel : config.workerModel;
+}
+
 // Default model names (avoid a circular import with config).
 let workerModel = "openai/gpt-oss-20b";
 export function setDefaultWorkerModel(model: string) {
@@ -175,4 +321,12 @@ export function setDefaultWorkerModel(model: string) {
 }
 export function defaultWorkerModel() {
 	return workerModel;
+}
+
+let bedrockModel = "anthropic.claude-sonnet-4-6-v1";
+export function setDefaultBedrockModel(model: string) {
+	bedrockModel = model;
+}
+export function defaultBedrockModel() {
+	return bedrockModel;
 }

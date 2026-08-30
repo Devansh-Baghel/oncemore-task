@@ -6,10 +6,20 @@ import { z } from "zod";
  * sub-questions in parallel, and recurse only where the critic flags weakness.
  */
 export const agentConfigSchema = z.object({
+	/** LLM provider — nvidia NIM vs AWS Bedrock (us-east-1). */
+	provider: z.enum(["nvidia", "bedrock"]).default("nvidia"),
 	/** NIM chat model used by planner / researcher / critic. */
 	workerModel: z.string().default("openai/gpt-oss-20b"),
 	/** NIM chat model used by the synthesizer (larger/stronger). */
 	synthesizerModel: z.string().default("openai/gpt-oss-120b"),
+	/** Bedrock model for planner (Sonnet 4.6 default). */
+	bedrockPlannerModel: z.string().default("anthropic.claude-sonnet-4-6-v1"),
+	/** Bedrock model for researcher (GLM-4.7 default). */
+	bedrockResearcherModel: z.string().default("zai.glm-4.7"),
+	/** Bedrock model for critic (GLM-5 default). */
+	bedrockCriticModel: z.string().default("zai.glm-5"),
+	/** Bedrock model for synthesizer (Sonnet 4.6 default). */
+	bedrockSynthesizerModel: z.string().default("anthropic.claude-sonnet-4-6-v1"),
 	/** How many levels deep recursion may go. Query = depth 0, first recurse = 1. */
 	maxDepth: z.number().int().min(0).default(2),
 	/** Global hard cap on Exa searches for the whole run. */

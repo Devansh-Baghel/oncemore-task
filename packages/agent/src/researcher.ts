@@ -1,8 +1,7 @@
 import { env } from "@oncemore/env/server";
 import { z } from "zod";
 import type { AgentConfig } from "./config";
-import type { Llm } from "./llm";
-import { debugLog } from "./llm";
+import { debugLog, type Llm, resolveModel } from "./llm";
 import type { ResearchResult, Source, Subquestion } from "./types";
 import { researchResultSchema } from "./types";
 
@@ -84,14 +83,7 @@ Rules:
 
 export interface ResearcherDeps {
 	llm: Llm;
-	config: Pick<
-		AgentConfig,
-		| "maxSourcesPerSubquestion"
-		| "maxSourceChars"
-		| "workerModel"
-		| "maxRetries"
-		| "searchTimeoutMs"
-	>;
+	config: AgentConfig;
 }
 
 /** Researcher role: subquestion + web -> cited ResearchResult. */
@@ -141,7 +133,7 @@ export async function researchSubquestion(
 	for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
 		try {
 			const output = await llm.generateJson(prompt, answerSchema, {
-				model: config.workerModel,
+				model: resolveModel(config, "researcher"),
 				maxOutputTokens: 700,
 			});
 			answerText = output.answer;

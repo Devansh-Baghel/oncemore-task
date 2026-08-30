@@ -77,13 +77,7 @@ export async function runResearch(input: RunInput): Promise<{
 
 	const { agentConfigSchema } = await import("./config");
 	const config: AgentConfig = agentConfigSchema.parse(configPatch ?? {});
-	const llm: Llm =
-		llmLib ??
-		new (await import("./llm")).NimLlm({
-			maxRetries: config.maxRetries,
-			retryDelayMs: config.retryDelayMs,
-			timeoutMs: config.llmTimeoutMs,
-		});
+	const llm: Llm = llmLib ?? (await import("./llm")).createLlm(config);
 
 	const emit = (event: AgentEvent) => {
 		callbacks?.logger?.handle(event);

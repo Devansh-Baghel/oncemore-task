@@ -10,6 +10,7 @@
 		"check-types": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@ai-sdk/amazon-bedrock": "^5.0.68",
 		"@ai-sdk/openai-compatible": "^3.0.40",
 		"@oncemore/env": "workspace:*",
 		"ai": "^7.0.84",

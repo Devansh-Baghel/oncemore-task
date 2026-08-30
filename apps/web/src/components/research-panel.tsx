@@ -54,6 +54,7 @@ import {
 import { Badge } from "@oncemore/ui/components/badge";
 import { TelescopeIcon, TriangleAlertIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+import { getProvider } from "@/lib/config-store";
 
 const SERVER_URL =
 	process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:3000";
@@ -283,10 +284,11 @@ function ResearchWorkspace() {
 		setError(null);
 
 		try {
+			const provider = getProvider();
 			const res = await fetch(`${SERVER_URL}/api/research`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ query }),
+				body: JSON.stringify({ query, config: { provider } }),
 			});
 			if (!res.ok || !res.body) {
 				throw new Error(`HTTP ${res.status}`);
@@ -323,7 +325,7 @@ function ResearchWorkspace() {
 	}
 
 	return (
-		<div className="mx-auto flex h-full w-full max-w-3xl flex-col">
+		<div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
 			<Conversation className="min-h-0 flex-1">
 				<ConversationContent className="mx-auto w-full max-w-3xl gap-4">
 					{question === null ? (

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AgentConfig } from "./config";
-import type { Llm } from "./llm";
+import { type Llm, resolveModel } from "./llm";
 import type { Report, ReportSection, ResearchResult, Source } from "./types";
 import { reportSchema, reportSectionSchema } from "./types";
 
@@ -17,7 +17,7 @@ Rules:
 
 export interface SynthesizerDeps {
 	llm: Llm;
-	config: Pick<AgentConfig, "synthesizerModel" | "maxRetries">;
+	config: AgentConfig;
 }
 
 const synthesizerOutputSchema = z.object({
@@ -67,7 +67,7 @@ export async function synthesizeReport(
 	for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
 		try {
 			const output = await llm.generateJson(prompt, synthesizerOutputSchema, {
-				model: config.synthesizerModel,
+				model: resolveModel(config, "synthesizer"),
 				maxOutputTokens: 2000,
 			});
 			const sections: ReportSection[] = output.sections.map((s, i) =>

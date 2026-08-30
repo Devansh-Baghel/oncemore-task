@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AgentConfig } from "./config";
-import type { Llm } from "./llm";
+import { type Llm, resolveModel } from "./llm";
 import type { ResearchResult, Verdict } from "./types";
 import { verdictSchema } from "./types";
 
@@ -18,7 +18,7 @@ Rules:
 
 export interface CriticDeps {
 	llm: Llm;
-	config: Pick<AgentConfig, "workerModel" | "maxRetries">;
+	config: AgentConfig;
 }
 
 /** Critic role: ResearchResult -> Verdict (accept | recurse | fail). */
@@ -47,7 +47,7 @@ export async function judgeResult(
 	for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
 		try {
 			const output = await llm.generateJson(prompt, criticOutputSchema, {
-				model: config.workerModel,
+				model: resolveModel(config, "critic"),
 				maxOutputTokens: 500,
 			});
 			return verdictSchema.parse(output);
