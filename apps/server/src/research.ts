@@ -4,6 +4,8 @@ import type { Request, Response } from "express";
 
 function sendEvent(res: Response, data: unknown) {
 	res.write(`data: ${JSON.stringify(data)}\n\n`);
+	// @ts-ignore
+	if (typeof (res as any).flush === "function") (res as any).flush();
 }
 
 /**
@@ -21,7 +23,17 @@ export async function handleResearch(req: Request, res: Response) {
 	res.setHeader("Content-Type", "text/event-stream");
 	res.setHeader("Cache-Control", "no-cache, no-transform");
 	res.setHeader("Connection", "keep-alive");
-	res.flushHeaders();
+	// Prevent App Engine / Cloud Run / nginx from buffering SSE.
+	// Without this, GAE buffers the entire 1.2 min stream and Chrome shows
+	// "Waiting for server response 1.2 min" instead of streaming.
+	res.setHeader("X-Accel-Buffering", "no");
+	res.setHeader("Content-Encoding", "none");
+	// @ts-ignore - flushHeaders exists on Node ServerResponse
+	if (typeof (res as any).flushHeaders === "function") res.flushHeaders();
+	// Ensure headers are sent immediately; some proxies wait for first write.
+	res.write(": stream start\n\n");
+	// @ts-ignore - flush exists when compression is used
+	if (typeof (res as any).flush === "function") (res as any).flush();
 
 	// Heartbeat to keep the connection alive on long runs.
 	const heartbeat = setInterval(() => res.write(": ping\n\n"), 15000);
