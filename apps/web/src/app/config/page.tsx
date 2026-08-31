@@ -84,7 +84,7 @@ export default function ConfigPage() {
 							<p className="text-muted-foreground">
 								Bedrock models:{" "}
 								<code className="rounded bg-muted px-1 py-0.5">
-									anthropic.claude-sonnet-4-6-v1
+									us.anthropic.claude-sonnet-4-6
 								</code>{" "}
 								for planner/synthesizer,{" "}
 								<code className="rounded bg-muted px-1 py-0.5">

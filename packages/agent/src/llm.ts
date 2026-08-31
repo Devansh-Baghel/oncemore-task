@@ -323,7 +323,7 @@ export function defaultWorkerModel() {
 	return workerModel;
 }
 
-let bedrockModel = "anthropic.claude-sonnet-4-6-v1";
+let bedrockModel = "us.anthropic.claude-sonnet-4-6";
 export function setDefaultBedrockModel(model: string) {
 	bedrockModel = model;
 }
