@@ -23,14 +23,14 @@ Planner → (Researcher ×N in parallel) → Critic (per answer) → [recurse?] 
 - **Per-sub-question recursive DFS (like GPT-Researcher / LangChain deep agents).** Rejected in favor of a **level-by-level breadth-first recursion**: all depth-0 sub-questions research in parallel (the widest, cheapest fan-out), and only the answers the critic flags recurse. This keeps end-to-end latency low and total searches proportional to actual need — we don't recurse unconditionally.
 - **A framework (LangGraph / CrewAI / etc.).** Rejected: for a system this size, framework overhead outweighs the benefit, and the task explicitly allows raw function calls. The role separation comes from code structure, not a library.
 - **Tavily/SerpAPI/scraping for search.** Chosen **Exa** because it returns clean, LLM-ready content (highlights + text) in the same call as search — no separate fetch/parse step, which keeps latency and cost down.
-- **Claude/OpenAI for the LLM.** Chosen **NVIDIA NIM** (free credits) with the **Vercel AI SDK** `@ai-sdk/openai-compatible` provider. Models are swappable via `config.ts` — the plan called for "swappable via config," and the `Llm` interface makes tests provider-free.
+- **Claude/GLM for the LLM.** AWS Bedrock (us-east-1) via `@ai-sdk/amazon-bedrock`. Models are swappable via `config.ts` — the `Llm` interface makes tests provider-free.
 
 ## Cost and speed reasoning
 
-- **Parallelism wins where it's cheapest.** The widest fan-out happens at depth 0 (5 searches in parallel). NIM's free tier is ~40 RPM and Exa's free tier covers ~$10 of credits, so 10–20 total searches is well within budget. The `parallelism` config caps concurrency if needed.
+- **Parallelism wins where it's cheapest.** The widest fan-out happens at depth 0 (5 searches in parallel). Exa's free tier covers ~$10 of credits, so 10–20 total searches is well within budget. The `parallelism` config caps concurrency if needed.
 - **Recursion is gated by the critic, not unconditional.** A shallow, well-covered query does 5 searches; only genuinely weak answers cost a second level. This is the main cost control.
 - **Hard caps enforced in code** (`maxDepth: 2`, `maxTotalSearches: 10`, per-level sub-question and source caps): on cap-hit the orchestrator emits a `budget_hit` event and synthesizes with what it has — it stops gracefully instead of blowing the budget.
-- **Model choice:** `openai/gpt-oss-20b` for planner/researcher/critic (fast, reliable JSON output), `openai/gpt-oss-120b` for synthesis (stronger, once, at the end). Cheap role calls + one expensive call at the end is the right cost curve.
+- **Model choice:** `us.anthropic.claude-sonnet-4-6` for planner/synthesizer, `zai.glm-4.7` for researcher, `zai.glm-5` for critic (Bedrock). Strong models for planning/synthesis, fast reliable models for research/critique.
 - **Search text is trimmed** to a per-source char budget before it reaches the LLM, keeping context small and costs linear.
 
 ## How to verify

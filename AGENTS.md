@@ -12,7 +12,7 @@ Bun 1.2.19 + Turbo 2.10 monorepo. Workspaces `apps/*`, `packages/*` with catalog
 ## Setup
 ```bash
 bun install
-cp apps/server/.env.example apps/server/.env  # fill NVIDIA_NIM_API_KEY, EXA_API_KEY, CORS_ORIGIN=http://localhost:3001
+cp apps/server/.env.example apps/server/.env  # fill AWS_BEDROCK_API_KEY, EXA_API_KEY, CORS_ORIGIN=http://localhost:3001
 ```
 `NEXT_PUBLIC_SERVER_URL` needed for web. `SKIP_ENV_VALIDATION=1` bypasses `packages/env/src/server.ts:27` validation. `.env`, `traces/`, `docs/` are gitignored.
 
@@ -34,8 +34,8 @@ Ports: API `3000`, web `3001` (`apps/web/package.json:6` uses `next dev --port 3
 - **Budget is hard-enforced in code** (`BudgetTracker:36`): `maxTotalSearches` (default 10) is the global Exa cap; on exhaustion emits single `budget_hit` and synthesizes with what exists. `maxDepth` default 2.
 - **Degradation, not crash**: single `researchSubquestion` failure emits `subquestion_failed` and continues (`orchestrator.ts:136`); synthesizer failure emits `synthesis_fallback` and returns deterministic `fallbackReport` (`orchestrator.ts:243`).
 - **Structured hand-offs** are zod schemas (`types.ts`) — never pass raw strings between roles.
-- **NIM JSON quirk**: `generateObject` / `responseFormat` not supported on NVIDIA NIM (`README.md:68`). All roles use JSON-instruct (prompt demands JSON) + zod parse + one retry. Do not switch to `generateObject`/`response_format: json_object`.
-- **LLM config** (`config.ts:8`): `provider: nvidia|bedrock`, `workerModel: openai/gpt-oss-20b`, `synthesizerModel: openai/gpt-oss-120b`, Bedrock models are separate fields. Timeouts: `llmTimeoutMs` 60s, `searchTimeoutMs` 30s, retries with exponential backoff (`maxRetries` 2).
+- **Structured output**: All roles use JSON-instruct (prompt demands JSON) + zod parse + retry. Do not switch to `generateObject`/`response_format: json_object`.
+- **LLM config** (`config.ts:8`): AWS Bedrock (us-east-1) only. Models: `bedrockPlannerModel: us.anthropic.claude-sonnet-4-6`, `bedrockResearcherModel: zai.glm-4.7`, `bedrockCriticModel: zai.glm-5`, `bedrockSynthesizerModel: us.anthropic.claude-sonnet-4-6`. Timeouts: `llmTimeoutMs` 60s, `searchTimeoutMs` 30s, retries with exponential backoff (`maxRetries` 2).
 
 ## Conventions & Gotchas
 - `exports: {".": "./src/index.ts"}` (`packages/agent/package.json:6`) — agent is consumed as source, no build step needed for dev.

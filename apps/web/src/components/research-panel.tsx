@@ -54,7 +54,6 @@ import {
 import { Badge } from "@oncemore/ui/components/badge";
 import { TelescopeIcon, TriangleAlertIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { getProvider } from "@/lib/config-store";
 
 const SERVER_URL =
 	process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:3000";
@@ -322,11 +321,10 @@ function ResearchWorkspace() {
 		setError(null);
 
 		try {
-			const provider = getProvider();
 			const res = await fetch(`${SERVER_URL}/api/research`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ query, config: { provider } }),
+				body: JSON.stringify({ query, config: {} }),
 			});
 			if (!res.ok || !res.body) {
 				throw new Error(`HTTP ${res.status}`);
@@ -364,9 +362,9 @@ function ResearchWorkspace() {
 	}
 
 	return (
-		<div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
-			<Conversation className="min-h-0 flex-1">
-				<ConversationContent className="mx-auto w-full max-w-3xl gap-4">
+		<div className="mx-auto flex min-h-0 w-full max-w-3xl min-w-0 flex-1 flex-col overflow-x-hidden">
+			<Conversation className="min-h-0 w-full min-w-0 flex-1 overflow-x-hidden">
+				<ConversationContent className="mx-auto w-full max-w-3xl min-w-0 gap-4 overflow-x-hidden">
 					{question === null ? (
 						<ConversationEmptyState>
 							<div className="flex flex-col items-center gap-4 text-center">
@@ -502,8 +500,8 @@ function ResearchWorkspace() {
 				<ConversationScrollButton />
 			</Conversation>
 
-			<div className="border-t bg-background">
-				<div className="mx-auto w-full max-w-3xl p-3">
+			<div className="border-t bg-background overflow-x-hidden">
+				<div className="mx-auto w-full max-w-3xl min-w-0 p-3">
 					<PromptInput
 						onSubmit={(message) => {
 							void startResearch(message.text);

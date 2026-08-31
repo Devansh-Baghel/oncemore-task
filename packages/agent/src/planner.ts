@@ -27,8 +27,8 @@ export interface PlannerDeps {
 
 /**
  * Planner role: user query -> structured Plan.
- * Uses JSON-instruct (NIM doesn't support native structured output) then
- * validates with zod, retrying once on parse/validation failure.
+ * Uses JSON-instruct then validates with zod, retrying once on
+ * parse/validation failure.
  */
 export async function planResearch(
 	query: string,

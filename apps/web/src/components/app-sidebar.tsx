@@ -35,7 +35,7 @@ export function AppSidebar() {
 		<Sidebar collapsible="icon">
 			<SidebarHeader className="border-sidebar-border border-b">
 				<div className="flex items-center gap-2 px-2 py-1.5">
-					<div className="flex size-7 items-center justify-center rounded-none bg-sidebar-primary text-sidebar-primary-foreground">
+					<div className="flex size-7 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
 						<span className="font-semibold text-xs">O</span>
 					</div>
 					<span className="font-semibold text-sm group-data-[collapsible=icon]:hidden">
@@ -47,7 +47,7 @@ export function AppSidebar() {
 				<SidebarGroup>
 					<SidebarGroupLabel>Navigation</SidebarGroupLabel>
 					<SidebarGroupContent>
-						<SidebarMenu>
+						<SidebarMenu className="gap-1.5">
 							{NAV_ITEMS.map((item) => {
 								const isActive =
 									item.url === "/"

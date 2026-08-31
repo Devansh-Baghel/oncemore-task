@@ -12,7 +12,8 @@ bun install
 
 # 2. Set API keys in apps/server/.env
 cp apps/server/.env.example apps/server/.env
-#   - NVIDIA_NIM_API_KEY (free: https://build.nvidia.com)
+#   - AWS_BEDROCK_API_KEY (AWS Bedrock us-east-1)
+#   - AWS_BEDROCK_REGION=us-east-1
 #   - EXA_API_KEY (free tier: https://dashboard.exa.ai)
 #   - CORS_ORIGIN=http://localhost:3001 (default)
 
@@ -59,13 +60,14 @@ user query
 
 | Area | Choice | Why |
 |---|---|---|
-| LLM | NVIDIA NIM via `@ai-sdk/openai-compatible` (Vercel AI SDK) | Free credits; OpenAI-compatible; swappable via config |
-| Worker model | `openai/gpt-oss-20b` | Verified fast + reliable JSON-instruct on NIM |
-| Synthesizer model | `openai/gpt-oss-120b` | Larger/stronger for the final report |
+| LLM | AWS Bedrock via `@ai-sdk/amazon-bedrock` (Vercel AI SDK) | us-east-1, API-key auth |
+| Planner / Synthesizer | `us.anthropic.claude-sonnet-4-6` | Strong reasoning for planning and final report |
+| Researcher | `zai.glm-4.7` | Fast + reliable for sub-question research |
+| Critic | `zai.glm-5` | Strong judgment for accept/recurse decisions |
 | Search | Exa REST API | Search + clean content extraction in one call |
 | Stack | This monorepo (Next.js web, Express on Bun, shared `packages/agent`) | Reuses the scaffold; `bun run dev` runs everything |
 
-> **Structured output on NIM**: `generateObject` schema mode is not supported by NIM's OpenAI-compatible endpoint (verified by probe — it errors with "responseFormat is not supported"). Instead, every role uses **JSON-instruct** — the prompt demands a JSON object, and the result is parsed + validated with zod, retrying once on failure. This is why there's no `generateObject` in the code.
+> **Structured output**: every role uses **JSON-instruct** — the prompt demands a JSON object, and the result is parsed + validated with zod, retrying on failure.
 
 ## CLI
 

@@ -6,7 +6,7 @@ import {
 	CollapsibleTrigger,
 } from "@oncemore/ui/components/collapsible";
 import { cn } from "@oncemore/ui/lib/utils";
-import { BookIcon, ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 
 export type SourcesProps = ComponentProps<"div">;
@@ -49,7 +49,7 @@ export const SourcesContent = ({
 }: SourcesContentProps) => (
 	<CollapsibleContent
 		className={cn(
-			"mt-3 flex w-fit flex-col gap-2",
+			"mt-3 flex w-full max-w-full flex-col gap-2.5 overflow-hidden",
 			"data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in",
 			className,
 		)}
@@ -61,17 +61,12 @@ export type SourceProps = ComponentProps<"a">;
 
 export const Source = ({ href, title, children, ...props }: SourceProps) => (
 	<a
-		className="flex items-center gap-2"
+		className="block truncate text-left font-medium leading-4 hover:underline"
 		href={href}
 		rel="noreferrer"
 		target="_blank"
 		{...props}
 	>
-		{children ?? (
-			<>
-				<BookIcon className="h-4 w-4" />
-				<span className="block font-medium">{title}</span>
-			</>
-		)}
+		{children ?? title}
 	</a>
 );

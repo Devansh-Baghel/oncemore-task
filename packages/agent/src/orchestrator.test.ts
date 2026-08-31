@@ -226,12 +226,12 @@ test("runResearch: every agent response includes model", async () => {
 	const planEvent = events.find((e) => e.type === "plan_created");
 	expect(planEvent).toBeDefined();
 	if (planEvent?.type === "plan_created") {
-		expect(planEvent.model).toBe("openai/gpt-oss-20b");
+		expect(planEvent.model).toBe("us.anthropic.claude-sonnet-4-6");
 	}
 
 	// researcher results carry model
 	for (const r of results) {
-		expect(r.model).toBe("openai/gpt-oss-20b");
+		expect(r.model).toBe("zai.glm-4.7");
 	}
 	const resultEvents = events.filter((e) => e.type === "result_produced");
 	for (const e of resultEvents) {
@@ -241,27 +241,14 @@ test("runResearch: every agent response includes model", async () => {
 	const verdictEvent = events.find((e) => e.type === "verdict");
 	expect(verdictEvent).toBeDefined();
 	if (verdictEvent?.type === "verdict") {
-		expect(verdictEvent.model).toBe("openai/gpt-oss-20b");
+		expect(verdictEvent.model).toBe("zai.glm-5");
 	}
 
 	const reportEvent = events.find((e) => e.type === "report_complete");
 	expect(reportEvent).toBeDefined();
 	if (reportEvent?.type === "report_complete") {
-		expect(reportEvent.model).toBe("openai/gpt-oss-120b");
-		expect(reportEvent.report.model).toBe("openai/gpt-oss-120b");
+		expect(reportEvent.model).toBe("us.anthropic.claude-sonnet-4-6");
+		expect(reportEvent.report.model).toBe("us.anthropic.claude-sonnet-4-6");
 	}
-	expect(report.model).toBe("openai/gpt-oss-120b");
-
-	// bedrock provider resolves per-role models
-	const bedrockEvents: AgentEvent[] = [];
-	await runResearch({
-		query: "Test query",
-		config: { provider: "bedrock" },
-		llm: makeFakeLlm(),
-		callbacks: { onEvent: (e) => bedrockEvents.push(e) },
-	});
-	const bPlan = bedrockEvents.find((e) => e.type === "plan_created");
-	if (bPlan?.type === "plan_created") expect(bPlan.model).toBe("anthropic.claude-sonnet-4-6-v1");
-	const bReport = bedrockEvents.find((e) => e.type === "report_complete");
-	if (bReport?.type === "report_complete") expect(bReport.model).toBe("anthropic.claude-sonnet-4-6-v1");
+	expect(report.model).toBe("us.anthropic.claude-sonnet-4-6");
 });

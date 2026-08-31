@@ -4,7 +4,7 @@ import type { Request, Response } from "express";
 
 function sendEvent(res: Response, data: unknown) {
 	res.write(`data: ${JSON.stringify(data)}\n\n`);
-	// @ts-ignore
+	// @ts-expect-error
 	if (typeof (res as any).flush === "function") (res as any).flush();
 }
 
@@ -28,11 +28,11 @@ export async function handleResearch(req: Request, res: Response) {
 	// "Waiting for server response 1.2 min" instead of streaming.
 	res.setHeader("X-Accel-Buffering", "no");
 	res.setHeader("Content-Encoding", "none");
-	// @ts-ignore - flushHeaders exists on Node ServerResponse
+	// @ts-expect-error - flushHeaders exists on Node ServerResponse
 	if (typeof (res as any).flushHeaders === "function") res.flushHeaders();
 	// Ensure headers are sent immediately; some proxies wait for first write.
 	res.write(": stream start\n\n");
-	// @ts-ignore - flush exists when compression is used
+	// @ts-expect-error - flush exists when compression is used
 	if (typeof (res as any).flush === "function") (res as any).flush();
 
 	// Heartbeat to keep the connection alive on long runs.
