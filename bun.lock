@@ -21,22 +21,19 @@
     "apps/server": {
       "name": "server",
       "dependencies": {
+        "@ai-sdk/amazon-bedrock": "^5.0.68",
         "@ai-sdk/openai-compatible": "^3.0.40",
-        "@oncemore/agent": "workspace:*",
-        "@oncemore/env": "workspace:*",
         "ai": "^7.0.84",
         "cors": "^2.8.6",
-        "dotenv": "catalog:",
+        "dotenv": "^17.4.2",
         "express": "^5.2.1",
-        "zod": "catalog:",
+        "zod": "^4.4.3",
       },
       "devDependencies": {
-        "@oncemore/config": "workspace:*",
-        "@types/bun": "catalog:",
         "@types/cors": "^2.8.19",
         "@types/express": "^5.0.6",
         "tsdown": "^0.22.14",
-        "typescript": "catalog:",
+        "typescript": "^6.0.3",
       },
     },
     "apps/web": {
