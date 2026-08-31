@@ -122,12 +122,19 @@ export type AgentEvent =
 			model: string;
 	  }
 	| {
+			type: "critic_started";
+			subquestionId: string;
+			depth: number;
+			model: string;
+	  }
+	| {
 			type: "recurse";
 			subquestionId: string;
 			followUpQuestion: string;
 			newDepth: number;
 	  }
 	| { type: "budget_hit"; reason: "depth" | "searches" }
+	| { type: "synthesis_started"; model: string }
 	| { type: "synthesis_fallback"; error: string }
 	| { type: "report_complete"; report: Report; stats: RunStats; model: string };
 

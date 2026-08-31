@@ -170,6 +170,12 @@ export async function runResearch(input: RunInput): Promise<{
 	}
 
 	async function evaluate(result: ResearchResult): Promise<Verdict> {
+		emit({
+			type: "critic_started",
+			subquestionId: result.subquestionId,
+			depth: result.depth,
+			model: resolveModel(config, "critic"),
+		});
 		spendLlm();
 		return judgeResult(result, { llm, config });
 	}
@@ -226,6 +232,7 @@ export async function runResearch(input: RunInput): Promise<{
 	// deterministic report assembled from whatever research succeeded.
 	let report: Report;
 	const synthesizerModel = resolveModel(config, "synthesizer");
+	emit({ type: "synthesis_started", model: synthesizerModel });
 	try {
 		report = await synthesizeReport(query, results, { llm, config });
 	} catch (err) {

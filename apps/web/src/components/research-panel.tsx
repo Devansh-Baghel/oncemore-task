@@ -52,7 +52,13 @@ import {
 	ToolHeader,
 } from "@oncemore/ui/components/ai-elements/tool";
 import { Badge } from "@oncemore/ui/components/badge";
-import { TelescopeIcon, TriangleAlertIcon } from "lucide-react";
+import {
+	Loader2Icon,
+	ScaleIcon,
+	SparklesIcon,
+	TelescopeIcon,
+	TriangleAlertIcon,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
 const SERVER_URL =
@@ -83,6 +89,8 @@ type SearchState = {
 	model?: string;
 	answer?: string;
 	followUp?: string;
+	isEvaluating?: boolean;
+	criticModel?: string;
 };
 
 function VerdictBadge({ decision }: { decision: Verdict["decision"] }) {
@@ -169,6 +177,17 @@ function SearchTool({ search }: { search: SearchState }) {
 					)}
 					{!search.answer && search.model && <ModelLine model={search.model} />}
 					{search.error && <p className="text-destructive">{search.error}</p>}
+					{search.isEvaluating && !search.verdict && (
+						<div className="flex items-center gap-1.5 text-muted-foreground">
+							<Loader2Icon className="size-3 animate-spin" />
+							<Shimmer className="text-xs">Evaluating answer…</Shimmer>
+							{search.criticModel && (
+								<span className="font-mono text-[11px] opacity-70">
+									({search.criticModel})
+								</span>
+							)}
+						</div>
+					)}
 					{search.verdict && (
 						<div className="space-y-1">
 							<p className="flex items-center gap-1.5">
@@ -198,6 +217,9 @@ function ResearchWorkspace() {
 	const [reportModel, setReportModel] = useState<string | null>(null);
 	const [stats, setStats] = useState<RunStats | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [evaluatingIds, setEvaluatingIds] = useState<Set<string>>(new Set());
+	const [synthesizing, setSynthesizing] = useState(false);
+	const [synthesizerModel, setSynthesizerModel] = useState<string | null>(null);
 
 	const reportMarkdown = useMemo(() => {
 		if (!report) {
@@ -267,11 +289,30 @@ function ResearchWorkspace() {
 					];
 				});
 				break;
+			case "critic_started":
+				setEvaluatingIds((prev) => {
+					const next = new Set(prev);
+					next.add(event.subquestionId);
+					return next;
+				});
+				setSearches((prev) =>
+					patchLatestSearch(prev, event.subquestionId, {
+						isEvaluating: true,
+						criticModel: event.model,
+					}),
+				);
+				break;
 			case "verdict":
+				setEvaluatingIds((prev) => {
+					const next = new Set(prev);
+					next.delete(event.subquestionId);
+					return next;
+				});
 				setSearches((prev) =>
 					patchLatestSearch(prev, event.subquestionId, {
 						verdict: event.verdict,
 						verdictModel: event.model,
+						isEvaluating: false,
 					}),
 				);
 				break;
@@ -288,13 +329,21 @@ function ResearchWorkspace() {
 					`Search budget cap hit (${event.reason}) — synthesizing with what we have`,
 				]);
 				break;
+			case "synthesis_started":
+				setSynthesizing(true);
+				setSynthesizerModel(event.model);
+				break;
 			case "synthesis_fallback":
+				setSynthesizing(false);
 				setWarnings((prev) => [
 					...prev,
 					`Synthesis failed (${event.error}) — using assembled fallback report`,
 				]);
 				break;
 			case "report_complete":
+				setSynthesizing(false);
+				setEvaluatingIds(new Set());
+				setSearches((prev) => prev.map((s) => ({ ...s, isEvaluating: false })));
 				setReport(event.report);
 				setReportModel(event.model ?? event.report.model ?? null);
 				setStats(event.stats);
@@ -319,6 +368,9 @@ function ResearchWorkspace() {
 		setReportModel(null);
 		setStats(null);
 		setError(null);
+		setEvaluatingIds(new Set());
+		setSynthesizing(false);
+		setSynthesizerModel(null);
 
 		try {
 			const res = await fetch(`${SERVER_URL}/api/research`, {
@@ -348,6 +400,11 @@ function ResearchWorkspace() {
 					if (data.kind === "event") {
 						handleEvent(data.event);
 					} else if (data.kind === "done") {
+						setSynthesizing(false);
+						setEvaluatingIds(new Set());
+						setSearches((prev) =>
+							prev.map((s) => ({ ...s, isEvaluating: false })),
+						);
 						setReport(data.report);
 						if (data.report.model) setReportModel(data.report.model);
 						setStats(data.stats);
@@ -358,13 +415,16 @@ function ResearchWorkspace() {
 			setError((e as Error).message);
 		} finally {
 			setRunning(false);
+			setSynthesizing(false);
+			setEvaluatingIds(new Set());
+			setSearches((prev) => prev.map((s) => ({ ...s, isEvaluating: false })));
 		}
 	}
 
 	return (
-		<div className="mx-auto flex min-h-0 w-full max-w-3xl min-w-0 flex-1 flex-col overflow-x-hidden">
+		<div className="mx-auto flex min-h-0 w-full min-w-0 max-w-3xl flex-1 flex-col overflow-x-hidden">
 			<Conversation className="min-h-0 w-full min-w-0 flex-1 overflow-x-hidden">
-				<ConversationContent className="mx-auto w-full max-w-3xl min-w-0 gap-4 overflow-x-hidden">
+				<ConversationContent className="mx-auto w-full min-w-0 max-w-3xl gap-4 overflow-x-hidden">
 					{question === null ? (
 						<ConversationEmptyState>
 							<div className="flex flex-col items-center gap-4 text-center">
@@ -439,6 +499,34 @@ function ResearchWorkspace() {
 								<SearchTool key={search.key} search={search} />
 							))}
 
+							{evaluatingIds.size > 0 && (
+								<div className="flex items-center gap-2 rounded-md border bg-muted/20 px-3 py-2">
+									<ScaleIcon className="size-3.5 shrink-0 animate-pulse text-muted-foreground" />
+									<Shimmer className="text-muted-foreground text-sm">
+										{evaluatingIds.size === 1
+											? "Evaluating answer — deciding to accept or dig deeper…"
+											: `Evaluating ${evaluatingIds.size} answers — deciding to accept or dig deeper…`}
+									</Shimmer>
+								</div>
+							)}
+
+							{synthesizing && (
+								<div className="flex items-center gap-2 rounded-md border bg-muted/20 px-3 py-2">
+									<SparklesIcon className="size-3.5 shrink-0 animate-pulse text-muted-foreground" />
+									<div className="space-y-0.5">
+										<Shimmer className="text-muted-foreground text-sm">
+											Generating final report…
+										</Shimmer>
+										{synthesizerModel && (
+											<p className="text-[11px] text-muted-foreground/70">
+												Model:{" "}
+												<span className="font-mono">{synthesizerModel}</span>
+											</p>
+										)}
+									</div>
+								</div>
+							)}
+
 							{warnings.map((warning, i) => (
 								<div
 									className="flex items-start gap-2 text-amber-600 text-xs dark:text-amber-400"
@@ -500,8 +588,8 @@ function ResearchWorkspace() {
 				<ConversationScrollButton />
 			</Conversation>
 
-			<div className="border-t bg-background overflow-x-hidden">
-				<div className="mx-auto w-full max-w-3xl min-w-0 p-3">
+			<div className="overflow-x-hidden border-t bg-background">
+				<div className="mx-auto w-full min-w-0 max-w-3xl p-3">
 					<PromptInput
 						onSubmit={(message) => {
 							void startResearch(message.text);

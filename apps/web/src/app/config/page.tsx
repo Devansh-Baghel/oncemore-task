@@ -40,12 +40,14 @@ export default function ConfigPage() {
 								us.anthropic.claude-sonnet-4-6
 							</code>{" "}
 							for planner/synthesizer,{" "}
-							<code className="rounded-md bg-muted px-1 py-0.5">zai.glm-4.7</code>{" "}
+							<code className="rounded-md bg-muted px-1 py-0.5">
+								zai.glm-4.7
+							</code>{" "}
 							for researcher,{" "}
 							<code className="rounded-md bg-muted px-1 py-0.5">zai.glm-5</code>{" "}
 							for critic. Region{" "}
-							<code className="rounded-md bg-muted px-1 py-0.5">us-east-1</code>.
-							API key is server-side only.
+							<code className="rounded-md bg-muted px-1 py-0.5">us-east-1</code>
+							. API key is server-side only.
 						</p>
 					</div>
 				</CardContent>

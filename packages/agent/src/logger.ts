@@ -41,6 +41,11 @@ export class ConsoleLogger {
 					`[researcher] FAILED ${event.subquestionId}: ${event.error} — continuing without it`,
 				);
 				break;
+			case "critic_started":
+				this.out(
+					`[critic:${event.model}] evaluating ${event.subquestionId} (depth ${event.depth})…`,
+				);
+				break;
 			case "verdict":
 				this.out(
 					`[critic:${event.model}] ${event.subquestionId} (depth ${event.depth}) -> ${event.verdict.decision}: ${event.verdict.reason}`,
@@ -55,6 +60,9 @@ export class ConsoleLogger {
 				this.out(
 					`[budget] hit cap (${event.reason}) — synthesizing with what we have`,
 				);
+				break;
+			case "synthesis_started":
+				this.out(`[synthesizer:${event.model}] synthesizing final report…`);
 				break;
 			case "synthesis_fallback":
 				this.out(

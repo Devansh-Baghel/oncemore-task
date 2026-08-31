@@ -2,7 +2,18 @@
 
 A small multi-agent research system: give it a question, and a **planner → (parallel) researchers → critic → synthesizer** pipeline researches sub-questions, recurses one level deeper where answers are weak (up to a hard cap), and returns a short cited report.
 
-Built for the [Paid Trial Task](docs/Paid_Trial_Task_Recursive_Research_Agent%20(1).md): a scoped-down recursive research agent with at least 3 distinct agent roles, structured JSON hand-offs, an enforced budget, and decision logging.
+Built for the Paid Trial Task: a scoped-down recursive research agent with at least 3 distinct agent roles, structured JSON hand-offs, an enforced budget, and decision logging.
+
+## Deployed Preview — For the OnceMore Team
+
+I've deployed this to make it easy to test and preview without any local setup:
+
+- **Frontend (Vercel):** https://oncemore-task.vercel.app
+- **Backend API (Google Cloud Run — `us-east1`):** https://oncemore-api-335154249837.us-east1.run.app
+  - Health check: `GET /` → `OK`
+  - Research stream: `POST /api/research` (SSE — `text/event-stream`)
+
+Backend is running on **Google Cloud Run** (`oncemore-api` / `us-east1`, min-instances 1) and frontend on **Vercel**. Just open the Vercel link and start researching — no API keys or env setup needed for preview. For local development, see Quick start below.
 
 ## Quick start
 
