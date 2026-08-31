@@ -40,6 +40,8 @@ export const researchResultSchema = z.object({
 	original: z.boolean(),
 	answer: z.string(),
 	sources: z.array(sourceSchema),
+	/** Model that generated this answer. */
+	model: z.string().optional(),
 });
 
 export type ResearchResult = z.infer<typeof researchResultSchema>;
@@ -77,6 +79,8 @@ export const reportSchema = z.object({
 			publishedDate: z.string().optional(),
 		}),
 	),
+	/** Model that synthesized this report. */
+	model: z.string().optional(),
 });
 
 export type Report = z.infer<typeof reportSchema>;
@@ -88,7 +92,7 @@ export type Report = z.infer<typeof reportSchema>;
  */
 export type AgentEvent =
 	| { type: "research_started"; query: string; config: unknown }
-	| { type: "plan_created"; plan: Plan }
+	| { type: "plan_created"; plan: Plan; model: string }
 	| {
 			type: "search_started";
 			subquestionId: string;
@@ -110,7 +114,13 @@ export type AgentEvent =
 			depth: number;
 			error: string;
 	  }
-	| { type: "verdict"; subquestionId: string; depth: number; verdict: Verdict }
+	| {
+			type: "verdict";
+			subquestionId: string;
+			depth: number;
+			verdict: Verdict;
+			model: string;
+	  }
 	| {
 			type: "recurse";
 			subquestionId: string;
@@ -119,7 +129,7 @@ export type AgentEvent =
 	  }
 	| { type: "budget_hit"; reason: "depth" | "searches" }
 	| { type: "synthesis_fallback"; error: string }
-	| { type: "report_complete"; report: Report; stats: RunStats };
+	| { type: "report_complete"; report: Report; stats: RunStats; model: string };
 
 export type RunStats = {
 	searches: number;

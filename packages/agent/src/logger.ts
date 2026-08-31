@@ -15,7 +15,7 @@ export class ConsoleLogger {
 				break;
 			case "plan_created":
 				this.out(
-					`[planner] plan -> ${event.plan.subquestions.length} sub-questions:`,
+					`[planner:${event.model}] plan -> ${event.plan.subquestions.length} sub-questions:`,
 				);
 				for (const sq of event.plan.subquestions) {
 					this.out(`  - ${sq.id}: ${sq.question}`);
@@ -33,7 +33,7 @@ export class ConsoleLogger {
 				break;
 			case "result_produced":
 				this.out(
-					`[researcher] ${event.result.subquestionId} -> ${event.result.answer.length} chars, ${event.result.sources.length} sources`,
+					`[researcher:${event.result.model ?? "unknown"}] ${event.result.subquestionId} -> ${event.result.answer.length} chars, ${event.result.sources.length} sources`,
 				);
 				break;
 			case "subquestion_failed":
@@ -43,7 +43,7 @@ export class ConsoleLogger {
 				break;
 			case "verdict":
 				this.out(
-					`[critic] ${event.subquestionId} (depth ${event.depth}) -> ${event.verdict.decision}: ${event.verdict.reason}`,
+					`[critic:${event.model}] ${event.subquestionId} (depth ${event.depth}) -> ${event.verdict.decision}: ${event.verdict.reason}`,
 				);
 				break;
 			case "recurse":
@@ -62,7 +62,9 @@ export class ConsoleLogger {
 				);
 				break;
 			case "report_complete":
-				this.out(`\n[synthesizer] report complete: ${event.report.title}`);
+				this.out(
+					`\n[synthesizer:${event.model}] report complete: ${event.report.title}`,
+				);
 				this.out(
 					`[run] done in ${event.stats.durationMs}ms | ${event.stats.searches} searches | ${event.stats.llmCalls} llm calls | ${event.stats.recursions} recursions`,
 				);

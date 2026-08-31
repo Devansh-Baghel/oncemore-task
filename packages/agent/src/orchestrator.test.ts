@@ -1,10 +1,44 @@
 // Orchestrator unit test with a fake LLM + fake search (no network, no credits).
 import "dotenv/config";
-import { expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 import type { z } from "zod";
 import type { Llm } from "./llm";
 import { runResearch } from "./orchestrator";
 import type { AgentEvent } from "./types";
+
+// Mock Exa search so tests don't hit the network / need API keys.
+const originalFetch = globalThis.fetch;
+beforeEach(() => {
+	globalThis.fetch = (async (input: unknown, init?: unknown) => {
+		const url =
+			typeof input === "string"
+				? input
+				: input instanceof URL
+					? input.href
+					: (input as { url: string }).url;
+		if (url.includes("api.exa.ai")) {
+			return new Response(
+				JSON.stringify({
+					results: [
+						{
+							title: "Test source",
+							url: "https://example.com/a",
+							highlights: ["highlight text"],
+							text: "Full text of test source for the subquestion answer.",
+							publishedDate: "2024-01-01",
+						},
+					],
+				}),
+				{ status: 200, headers: { "Content-Type": "application/json" } },
+			);
+		}
+		// fallback to real fetch for other URLs
+		return originalFetch(input as never, init as never);
+	}) as typeof fetch;
+});
+afterEach(() => {
+	globalThis.fetch = originalFetch;
+});
 
 /** Fake LLM: returns canned JSON per role based on prompt hints. */
 function makeFakeLlm(): Llm {
@@ -179,4 +213,55 @@ test("runResearch: synthesizer failure falls back to an assembled report", async
 	expect(report.title).toBe("Test query");
 	expect(report.sections).toHaveLength(1);
 	expect(report.sections[0]?.answer).toBe("A factual answer.");
+});
+
+test("runResearch: every agent response includes model", async () => {
+	const events: AgentEvent[] = [];
+	const { report, results } = await runResearch({
+		query: "Test query",
+		llm: makeFakeLlm(),
+		callbacks: { onEvent: (e) => events.push(e) },
+	});
+
+	const planEvent = events.find((e) => e.type === "plan_created");
+	expect(planEvent).toBeDefined();
+	if (planEvent?.type === "plan_created") {
+		expect(planEvent.model).toBe("openai/gpt-oss-20b");
+	}
+
+	// researcher results carry model
+	for (const r of results) {
+		expect(r.model).toBe("openai/gpt-oss-20b");
+	}
+	const resultEvents = events.filter((e) => e.type === "result_produced");
+	for (const e of resultEvents) {
+		if (e.type === "result_produced") expect(e.result.model).toBeTruthy();
+	}
+
+	const verdictEvent = events.find((e) => e.type === "verdict");
+	expect(verdictEvent).toBeDefined();
+	if (verdictEvent?.type === "verdict") {
+		expect(verdictEvent.model).toBe("openai/gpt-oss-20b");
+	}
+
+	const reportEvent = events.find((e) => e.type === "report_complete");
+	expect(reportEvent).toBeDefined();
+	if (reportEvent?.type === "report_complete") {
+		expect(reportEvent.model).toBe("openai/gpt-oss-120b");
+		expect(reportEvent.report.model).toBe("openai/gpt-oss-120b");
+	}
+	expect(report.model).toBe("openai/gpt-oss-120b");
+
+	// bedrock provider resolves per-role models
+	const bedrockEvents: AgentEvent[] = [];
+	await runResearch({
+		query: "Test query",
+		config: { provider: "bedrock" },
+		llm: makeFakeLlm(),
+		callbacks: { onEvent: (e) => bedrockEvents.push(e) },
+	});
+	const bPlan = bedrockEvents.find((e) => e.type === "plan_created");
+	if (bPlan?.type === "plan_created") expect(bPlan.model).toBe("anthropic.claude-sonnet-4-6-v1");
+	const bReport = bedrockEvents.find((e) => e.type === "report_complete");
+	if (bReport?.type === "report_complete") expect(bReport.model).toBe("anthropic.claude-sonnet-4-6-v1");
 });

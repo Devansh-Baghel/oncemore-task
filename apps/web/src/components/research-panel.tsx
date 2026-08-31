@@ -80,6 +80,9 @@ type SearchState = {
 	durationMs?: number;
 	error?: string;
 	verdict?: Verdict;
+	verdictModel?: string;
+	model?: string;
+	answer?: string;
 	followUp?: string;
 };
 
@@ -129,6 +132,14 @@ function patchLatestSearch(
 	return searches;
 }
 
+function ModelLine({ model }: { model: string }) {
+	return (
+		<p className="text-[11px] text-muted-foreground/70">
+			Model: <span className="font-mono">{model}</span>
+		</p>
+	);
+}
+
 function SearchTool({ search }: { search: SearchState }) {
 	const state =
 		search.status === "running"
@@ -149,12 +160,24 @@ function SearchTool({ search }: { search: SearchState }) {
 							{((search.durationMs ?? 0) / 1000).toFixed(1)}s
 						</p>
 					)}
+					{search.answer && (
+						<div className="space-y-1 rounded-none border bg-muted/20 p-2 text-foreground">
+							<p className="line-clamp-6 whitespace-pre-wrap text-xs leading-relaxed">
+								{search.answer}
+							</p>
+							{search.model && <ModelLine model={search.model} />}
+						</div>
+					)}
+					{!search.answer && search.model && <ModelLine model={search.model} />}
 					{search.error && <p className="text-destructive">{search.error}</p>}
 					{search.verdict && (
-						<p className="flex items-center gap-1.5">
-							<VerdictBadge decision={search.verdict.decision} />
-							<span>{search.verdict.reason}</span>
-						</p>
+						<div className="space-y-1">
+							<p className="flex items-center gap-1.5">
+								<VerdictBadge decision={search.verdict.decision} />
+								<span>{search.verdict.reason}</span>
+							</p>
+							{search.verdictModel && <ModelLine model={search.verdictModel} />}
+						</div>
 					)}
 					{search.followUp && <p>Following up: “{search.followUp}”</p>}
 				</div>
@@ -169,9 +192,11 @@ function ResearchWorkspace() {
 	const [runId, setRunId] = useState(0);
 	const [question, setQuestion] = useState<string | null>(null);
 	const [plan, setPlan] = useState<ResearchPlan | null>(null);
+	const [plannerModel, setPlannerModel] = useState<string | null>(null);
 	const [searches, setSearches] = useState<SearchState[]>([]);
 	const [warnings, setWarnings] = useState<string[]>([]);
 	const [report, setReport] = useState<Report | null>(null);
+	const [reportModel, setReportModel] = useState<string | null>(null);
 	const [stats, setStats] = useState<RunStats | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
@@ -190,6 +215,15 @@ function ResearchWorkspace() {
 		switch (event.type) {
 			case "plan_created":
 				setPlan(event.plan);
+				setPlannerModel(event.model);
+				break;
+			case "result_produced":
+				setSearches((prev) =>
+					patchLatestSearch(prev, event.result.subquestionId, {
+						answer: event.result.answer,
+						model: event.result.model,
+					}),
+				);
 				break;
 			case "search_started":
 				setSearches((prev) => [
@@ -238,6 +272,7 @@ function ResearchWorkspace() {
 				setSearches((prev) =>
 					patchLatestSearch(prev, event.subquestionId, {
 						verdict: event.verdict,
+						verdictModel: event.model,
 					}),
 				);
 				break;
@@ -262,6 +297,7 @@ function ResearchWorkspace() {
 				break;
 			case "report_complete":
 				setReport(event.report);
+				setReportModel(event.model ?? event.report.model ?? null);
 				setStats(event.stats);
 				break;
 			default:
@@ -277,9 +313,11 @@ function ResearchWorkspace() {
 		setQuestion(query);
 		setRunning(true);
 		setPlan(null);
+		setPlannerModel(null);
 		setSearches([]);
 		setWarnings([]);
 		setReport(null);
+		setReportModel(null);
 		setStats(null);
 		setError(null);
 
@@ -313,6 +351,7 @@ function ResearchWorkspace() {
 						handleEvent(data.event);
 					} else if (data.kind === "done") {
 						setReport(data.report);
+						if (data.report.model) setReportModel(data.report.model);
 						setStats(data.stats);
 					}
 				}
@@ -389,6 +428,11 @@ function ResearchWorkspace() {
 												</li>
 											))}
 										</ul>
+										{plannerModel && (
+											<div className="pt-2">
+												<ModelLine model={plannerModel} />
+											</div>
+										)}
 									</PlanContent>
 								</Plan>
 							)}
@@ -428,6 +472,11 @@ function ResearchWorkspace() {
 											</SourcesContent>
 										</Sources>
 										<MessageResponse>{reportMarkdown}</MessageResponse>
+										{(reportModel ?? report.model) && (
+											<ModelLine
+												model={(reportModel ?? report.model) as string}
+											/>
+										)}
 										{stats && (
 											<div className="flex flex-wrap gap-1.5">
 												<Badge variant="outline">

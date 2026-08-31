@@ -90,6 +90,7 @@ export async function synthesizeReport(
 				summary: output.summary,
 				sections,
 				citations,
+				model: resolveModel(config, "synthesizer"),
 			});
 		} catch (err) {
 			lastError = err;

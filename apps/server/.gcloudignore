@@ -1,0 +1,27 @@
+# .gcloudignore for App Engine (apps/server)
+# This backend is a monorepo workspace (apps/server + packages/*).
+# Deployment is done PRE-BUILT: `bun run build` bundles packages into
+# apps/server/dist/index.mjs via tsdown (see tsdown.config.ts `alwaysBundle`).
+# So GAE only needs dist/ + package.json + node_modules (installed by GAE).
+# src/ is ignored to keep upload small, but dist/ MUST be uploaded.
+
+.gcloudignore
+.git
+.gitignore
+node_modules/
+.turbo/
+traces/
+.env
+.env.*
+!.env.example
+src/
+*.tsbuildinfo
+*.log
+.DS_Store
+
+# Monorepo pre-built deploy: dist/ is bundled via `bun run build` (turbo)
+# and MUST be uploaded. src/ can be skipped to reduce upload size since
+# GAE will run `node dist/index.mjs` directly (no cloud build).
+# If you want GAE to rebuild, remove `src/` from this file and add
+# a `gcp-build` script, but you must also upload packages/*.
+!dist/

@@ -1,6 +1,6 @@
 import type { AgentConfig } from "./config";
 import { judgeResult } from "./critic";
-import type { Llm } from "./llm";
+import { type Llm, resolveModel } from "./llm";
 import type { ConsoleLogger } from "./logger";
 import { planResearch } from "./planner";
 import { researchSubquestion } from "./researcher";
@@ -111,7 +111,11 @@ export async function runResearch(input: RunInput): Promise<{
 
 	// ---- Planner ----
 	const plan = await planResearch(query, { llm, config });
-	emit({ type: "plan_created", plan });
+	emit({
+		type: "plan_created",
+		plan,
+		model: resolveModel(config, "planner"),
+	});
 
 	// ---- Depth-first recursion (with parallel siblings at each depth) ----
 	// Returns null when the search budget is exhausted OR the sub-question
@@ -192,6 +196,7 @@ export async function runResearch(input: RunInput): Promise<{
 			subquestionId: result.subquestionId,
 			depth: result.depth,
 			verdict,
+			model: resolveModel(config, "critic"),
 		});
 
 		if (
@@ -220,6 +225,7 @@ export async function runResearch(input: RunInput): Promise<{
 	// If synthesis fails (or there are no results at all), degrade to a
 	// deterministic report assembled from whatever research succeeded.
 	let report: Report;
+	const synthesizerModel = resolveModel(config, "synthesizer");
 	try {
 		report = await synthesizeReport(query, results, { llm, config });
 	} catch (err) {
@@ -227,10 +233,15 @@ export async function runResearch(input: RunInput): Promise<{
 			type: "synthesis_fallback",
 			error: (err as Error).message.slice(0, 300),
 		});
-		report = fallbackReport(query, results);
+		report = fallbackReport(query, results, synthesizerModel);
 	}
 	stats.durationMs = Date.now() - startedAt;
-	emit({ type: "report_complete", report, stats });
+	emit({
+		type: "report_complete",
+		report,
+		stats,
+		model: report.model ?? synthesizerModel,
+	});
 
 	return { report, stats, results, plan };
 }
@@ -239,7 +250,11 @@ export async function runResearch(input: RunInput): Promise<{
  * Deterministic last-resort report: no LLM, just the researched sub-answers
  * and their sources. Guarantees the run always produces usable output.
  */
-function fallbackReport(query: string, results: ResearchResult[]) {
+function fallbackReport(
+	query: string,
+	results: ResearchResult[],
+	model?: string,
+) {
 	const citations = new Map<
 		string,
 		{ id: string; url: string; title: string; publishedDate?: string }
@@ -273,6 +288,7 @@ function fallbackReport(query: string, results: ResearchResult[]) {
 				: "No sub-answers could be researched (all attempts failed or the budget was exhausted).",
 		sections,
 		citations: [...citations.values()],
+		model,
 	};
 }
 

@@ -159,5 +159,6 @@ export async function researchSubquestion(
 		original: subquestion.depth === 0,
 		answer: answerText,
 		sources: citedSources.length > 0 ? citedSources : sources,
+		model: resolveModel(config, "researcher"),
 	});
 }
